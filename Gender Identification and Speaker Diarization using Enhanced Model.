@@ -1,0 +1,79 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import classification_report, confusion_matrix
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Conv1D, MaxPooling1D, Flatten, LSTM, Embedding, SpatialDropout1D
+
+# Load the CSV file into a DataFra # Update this path accordingly
+
+csv_path = '/kaggle/input/gender-identification/tensorflow2/genderidentification/1/voice.csv'
+voice_data = pd.read_csv(csv_path)
+
+# Encode the labels
+le = LabelEncoder()
+voice_data['label'] = le.fit_transform(voice_data['label'])
+
+# Prepare features and labels
+X = voice_data.drop(columns=['label'])
+y = voice_data['label']
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Normalize the features
+X_train = np.expand_dims(X_train.values, axis=2)
+X_test = np.expand_dims(X_test.values, axis=2)
+
+# Define CNN Model
+cnn_model = Sequential()
+cnn_model.add(Conv1D(64, 5, activation='relu', input_shape=(X_train.shape[1], 1)))
+cnn_model.add(MaxPooling1D(pool_size=2))
+cnn_model.add(Flatten())
+cnn_model.add(Dense(10, activation='relu'))
+cnn_model.add(Dense(1, activation='sigmoid'))
+
+cnn_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+cnn_model.summary()
+
+# Train CNN Model
+cnn_history = cnn_model.fit(X_train, y_train, epochs=10, batch_size=64, validation_data=(X_test, y_test), verbose=2)
+
+# Define LSTM Model
+lstm_model = Sequential()
+lstm_model.add(LSTM(100, dropout=0.2, recurrent_dropout=0.2, input_shape=(X_train.shape[1], 1)))
+lstm_model.add(Dense(1, activation='sigmoid'))
+
+lstm_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+lstm_model.summary()
+
+# Train LSTM Model
+lstm_history = lstm_model.fit(X_train, y_train, epochs=10, batch_size=64, validation_data=(X_test, y_test), verbose=2)
+
+# Evaluate CNN Model
+cnn_score = cnn_model.evaluate(X_test, y_test, verbose=0)
+print(f'CNN Test Accuracy: {cnn_score[1]}')
+
+# Evaluate LSTM Model
+lstm_score = lstm_model.evaluate(X_test, y_test, verbose=0)
+print(f'LSTM Test Accuracy: {lstm_score[1]}')
+
+# Plotting Accuracy Graph
+plt.figure(figsize=(12, 6))
+
+# CNN
+plt.plot(cnn_history.history['accuracy'], label='CNN Training Accuracy')
+plt.plot(cnn_history.history['val_accuracy'], label='CNN Validation Accuracy')
+
+# LSTM
+plt.plot(lstm_history.history['accuracy'], label='LSTM Training Accuracy')
+plt.plot(lstm_history.history['val_accuracy'], label='LSTM Validation Accuracy')
+
+plt.title('CNN and LSTM Model Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
